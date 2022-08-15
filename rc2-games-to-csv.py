@@ -12,6 +12,10 @@ team = "322147" # SGK Rolling Chocolate 2
 all_games = -1 # -2 would skip past games
 html_url = f"{base_url}/index.jsp?Action=101&liga_id={league}"
 ical_url = f"{base_url}/servlet/KalenderDienst?typ=2&liga_id={league}&ms_liga_id={team}&spt={all_games}"
+category = "rc2"
+
+def shorten_rc_team_name(str):
+    return str.replace("SGK Rolling Chocolate 2", "RC2")
 
 all_location_names = {}
 events = []
@@ -71,7 +75,7 @@ def parse_calendar():
 
 def parse_calendar_event(event):
     event_and_locationshortname = event.get("summary").rsplit(",", 1)  # format: "event, location_shortname"
-    event_name = shorten_rc_team_name(event_and_locationshortname[0])
+    event_name = shorten_rc_team_name(event_and_locationshortname[0]).replace("-", " - ")
     location_name = all_location_names[event_and_locationshortname[1].strip()]
     location_address = event.get("location")
 
@@ -80,15 +84,12 @@ def parse_calendar_event(event):
         "start": event.decoded("dtstart"),
         "end": event.decoded("dtend"),
         "location": location_name,
-        "category": "rc2"
+        "category": category
     })
     locations[location_name] = location_address
 
     print("Event found:", event_and_locationshortname[0], "@",
             location_name + " (" + location_address + ")")
-
-def shorten_rc_team_name(str):
-    return str.replace("SGK Rolling Chocolate 2", "RC2").replace("-", " - ")
 
 def create_locations_csv():
     with open('locations.csv', 'w') as csvfile:
