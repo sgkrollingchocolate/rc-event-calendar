@@ -1,10 +1,10 @@
-from bs4 import BeautifulSoup
 import csv
-import icalendar
 import re
+from urllib.parse import urljoin
+
+import icalendar
 import requests
-import sys
-from urllib.parse import urlparse, urljoin
+from bs4 import BeautifulSoup
 
 events = []
 location_names = {}
