@@ -64,7 +64,7 @@ def strip_multiple_spaces_to_single_space(str):
     return " ".join(str.split())
 
 """
-Parse the DBB Spielplan calendar export, filtered to RC2 team.
+Parse the DBB Spielplan calendar export
 """
 def parse_calendar():
     print("\nReading iCal:", ical_url)
