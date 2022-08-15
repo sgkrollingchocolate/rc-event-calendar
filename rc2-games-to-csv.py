@@ -6,6 +6,13 @@ import icalendar
 import requests
 from bs4 import BeautifulSoup
 
+base_url = "https://www.basketball-bund.net"
+league = "36203" # RBB Oberliga Süd
+team = "322147" # SGK Rolling Chocolate 2
+all_games = -1 # -2 would skip past games
+html_url = f"{base_url}/index.jsp?Action=101&liga_id={league}"
+ical_url = f"{base_url}/servlet/KalenderDienst?typ=2&liga_id={league}&ms_liga_id={team}&spt={all_games}"
+
 all_location_names = {}
 events = []
 locations = {}
@@ -15,62 +22,73 @@ DBB Spielplan calendar export doesn't contain location name (e.g. Halle 1 Sportz
 in the event summary. This funtion scraps the mapping from location shortname to name from the paged HTML.
 """
 def map_all_location_names():
-    session = requests.Session()  # navigation only works with session cookie
-    html_url = "https://www.basketball-bund.net/index.jsp?Action=101&liga_id=36203"
+    session = requests.Session()  # navigation to next page only works with session cookie
+    current_url = html_url
+    while current_url != None:
+        print("\nReading HTML:", current_url)
+        html_doc = session.get(current_url).text
+        html_dom = BeautifulSoup(html_doc, 'html.parser')
+
+        find_and_map_location_names_in_html(html_dom)
+        
+        next_page_link = find_next_page_link(html_dom)
+        if next_page_link != None:
+            current_url = urljoin(current_url, next_page_link)
+        else:
+            current_url = None
+
+def find_next_page_link(html_dom):
+    next_page_image = html_dom.find(title="Seite vor")
+    return next_page_image.find_parent().get("href")
+
+def find_and_map_location_names_in_html(html_dom):
+    elements_with_mouse_over = html_dom.findAll(onmouseover=True)
+    find_and_map_location_names_in_elements_with_mouseover(elements_with_mouse_over)
+
+def find_and_map_location_names_in_elements_with_mouseover(elements):
     location_description_pattern = re.compile(
         "^ShowBubble.*Bezeichnung:</td><td>(?P<location>.*?)</td>.*Kurzname:</td><td>(?P<locationshortname>.*?)</td>")
-    while html_url != None:
-        print("\nReading HTML:", html_url)
-        html_doc = session.get(html_url).text
-        soup = BeautifulSoup(html_doc, 'html.parser')
+    for element in elements:
+        match = location_description_pattern.match(element.get("onmouseover"))
+        if match != None:
+            location = strip_multiple_spaces_to_single_space(match.group("location"))
+            print("Location found:", match.group(
+                "locationshortname"), "=>", location)
+            all_location_names[match.group("locationshortname")] = location
 
-        elements_with_mouse_over = soup.findAll(onmouseover=True)
-        for element in elements_with_mouse_over:
-            match = location_description_pattern.match(
-                element.get("onmouseover"))
-            if match != None:
-                # remove duplicate spaces
-                location = " ".join(match.group("location").split())
-                print("Location found:", match.group(
-                    "locationshortname"), "=>", location)
-                all_location_names[match.group("locationshortname")] = location
-
-        next_page_image = soup.find(title="Seite vor")
-        next_page_link = next_page_image.find_parent().get("href")
-        if next_page_link != None:
-            html_url = urljoin(html_url, next_page_link)
-        else:
-            html_url = None
+def strip_multiple_spaces_to_single_space(str):
+    return " ".join(str.split())
 
 """
 Parse the DBB Spielplan calendar export, filtered to RC2 team.
 """
 def parse_calendar():
-    ical_url = "https://www.basketball-bund.net/servlet/KalenderDienst?typ=2&liga_id=36203&ms_liga_id=322147&spt=-2"
     print("\nReading iCal:", ical_url)
     cal = icalendar.Calendar.from_ical(requests.get(ical_url).text)
     for component in cal.walk():
         if component.name == "VEVENT":
-            event_and_locationshortname = component.get("summary").rsplit(
-                ",", 1)  # format: "event, location_shortname"
-            event_name = event_and_locationshortname[0].replace(
-                "SGK Rolling Chocolate 2", "RC2").replace("-", " - ")
-            location_name = all_location_names[event_and_locationshortname[1].strip(
-            )]
-            location_address = component.get("location")
+            parse_calendar_event(component)
 
-            events.append({
-                "event": event_name,
-                "start": component.decoded("dtstart"),
-                "end": component.decoded("dtend"),
-                "location": location_name,
-                "category": "rc2"
-            }
-            )
-            locations[location_name] = location_address
+def parse_calendar_event(event):
+    event_and_locationshortname = event.get("summary").rsplit(",", 1)  # format: "event, location_shortname"
+    event_name = shorten_rc_team_name(event_and_locationshortname[0])
+    location_name = all_location_names[event_and_locationshortname[1].strip()]
+    location_address = event.get("location")
 
-            print("Event found:", event_and_locationshortname[0], "@",
-                  location_name + " (" + location_address + ")")
+    events.append({
+        "event": event_name,
+        "start": event.decoded("dtstart"),
+        "end": event.decoded("dtend"),
+        "location": location_name,
+        "category": "rc2"
+    })
+    locations[location_name] = location_address
+
+    print("Event found:", event_and_locationshortname[0], "@",
+            location_name + " (" + location_address + ")")
+
+def shorten_rc_team_name(str):
+    return str.replace("SGK Rolling Chocolate 2", "RC2").replace("-", " - ")
 
 def create_locations_csv():
     with open('locations.csv', 'w') as csvfile:
@@ -86,7 +104,6 @@ def create_events_csv():
         csvwriter.writeheader()
         for event in events:
             csvwriter.writerow(event)
-
 
 map_all_location_names()
 parse_calendar()
