@@ -46,7 +46,7 @@ for component in cal.walk():
         locations[location_name] = location_address
 
         events.append({
-            "event": event_location[0],
+            "event": event_location[0].replace("SGK Rolling Chocolate 2", "RC2").replace("-", " - "),
             "start": component.decoded("dtstart"),
             "end": component.decoded("dtend"),
             "location": location_name,
