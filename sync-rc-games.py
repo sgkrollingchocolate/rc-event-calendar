@@ -143,7 +143,7 @@ def parse_calendar_event(event, teamname, teamshortname):
     event_and_locationshortname = event.get("summary").rsplit(
         ",", 1)  # format: "event, location_shortname"
     event_title = shorten_team_name(
-        event_and_locationshortname[0], teamname, teamshortname).replace("-", " - ")
+        event_and_locationshortname[0], teamname, teamshortname).replace("-", " - ").replace("Lahn - Dill", "Lahn-Dill")
     location_name = all_location_names[event_and_locationshortname[1].strip()]
     location_address = event.get("location")
 
@@ -251,6 +251,7 @@ def create_event_payload_and_headers(game, league, event_categories):
         "title": game["title"],
         "start_date": game["start"].strftime("%Y-%m-%d %H:%M:%S"),
         "end_date": game["end"].strftime("%Y-%m-%d %H:%M:%S"),
+        "timezone": "UTC",  # times are given in UTC
         "venue": venues[game["venue"]],
         "categories": event_categories,
         "show_map": True,
