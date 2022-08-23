@@ -9,22 +9,9 @@ import icalendar
 import requests
 from bs4 import BeautifulSoup
 
-# game data
-games_base_url = "https://www.basketball-bund.net"
-league = "36203"  # RBB Oberliga Süd
-team = "322147"  # SGK Rolling Chocolate 2
-all_games = -1  # -2 would skip past games
-games_html_url = f"{games_base_url}/index.jsp?Action=101&liga_id={league}"
-games_ical_url = f"{games_base_url}/servlet/KalenderDienst?typ=2&liga_id={league}&ms_liga_id={team}&spt={all_games}"
-
 # wordpress
 wp_events_api = "https://relaunch.rolling-chocolate.de/wp-json/tribe/events/v1/"
 wp_auth = None
-event_categories = ["rc2", "spieltag", "runde-22-23"]
-
-
-def shorten_rc_team_name(str):
-    return str.replace("SGK Rolling Chocolate 2", "RC2")
 
 
 # global data
@@ -34,13 +21,36 @@ locations = {}
 venues = {}
 
 
+def clear_global_state():
+    all_location_names.clear()
+    games.clear()
+    locations.clear()
+    venues.clear()
+
+
 def main():
+    parse_arguments_and_init_wp_auth()
+
+    rc1_league_id = "36198"
+    rc1_team_id = "309810"
+    rc1_team_name = "SGK Rolling Chocolate"
+    rc1_team_shortname = "RC1"
+    rc1_event_categories = ["rc1", "spieltag", "runde-22-23"]
+    sync_team_games(rc1_league_id, rc1_team_id, rc1_team_name,
+                    rc1_team_shortname, rc1_event_categories)
+
+    rc2_league_id = "36203"
+    rc2_team_id = "322147"
+    rc2_team_name = "SGK Rolling Chocolate 2"
+    rc2_team_shortname = "RC2"
+    rc2_event_categories = ["rc2", "spieltag", "runde-22-23"]
+    sync_team_games(rc2_league_id, rc2_team_id, rc2_team_name,
+                    rc2_team_shortname, rc2_event_categories)
+
+
+def parse_arguments_and_init_wp_auth():
     args = parse_arguments()
     init_wp_auth(args.wp_user.strip(), args.wp_pass.strip())
-    map_all_location_names()
-    parse_calendar()
-    create_or_update_venues()
-    create_or_update_events()
 
 
 def parse_arguments():
@@ -59,11 +69,20 @@ def init_wp_auth(wp_user, wp_pass):
             bytes(wp_user + ":" + wp_pass, "utf-8")).decode("utf-8")
 
 
+def sync_team_games(league_id, team_id, team_name, team_shortname, event_categories):
+    clear_global_state()
+    map_all_location_names(league_id)
+    parse_calendar(league_id, team_id, team_name, team_shortname)
+    create_or_update_venues()
+    create_or_update_events(league_id, event_categories)
+
+
 # DBB Spielplan calendar export doesn't contain location name (e.g. Halle 1 Sportzentrum Süd), only a shortname (e.g. RBB-SZS)
 # in the event summary. This funtion scraps the mapping from location shortname to name from the paged HTML.
-def map_all_location_names():
+def map_all_location_names(league):
     session = requests.Session()  # navigation to next page only works with session cookie
-    current_url = games_html_url
+    current_url = f"https://www.basketball-bund.net/index.jsp?Action=101&liga_id={league}"
+
     while current_url != None:
         print("\nReading HTML:", current_url)
         response = session.get(current_url)
@@ -108,21 +127,23 @@ def strip_multiple_spaces_to_single_space(str):
 
 
 # Parse the DBB Spielplan calendar export
-def parse_calendar():
+def parse_calendar(league, team, teamname, teamshortname):
+    all_games = -1  # -2 would skip past games
+    games_ical_url = f"https://www.basketball-bund.net/servlet/KalenderDienst?typ=2&liga_id={league}&ms_liga_id={team}&spt={all_games}"
     print("\nReading iCal:", games_ical_url)
     response = requests.get(games_ical_url)
     response.raise_for_status()
     cal = icalendar.Calendar.from_ical(response.text)
     for component in cal.walk():
         if component.name == "VEVENT":
-            parse_calendar_event(component)
+            parse_calendar_event(component, teamname, teamshortname)
 
 
-def parse_calendar_event(event):
+def parse_calendar_event(event, teamname, teamshortname):
     event_and_locationshortname = event.get("summary").rsplit(
         ",", 1)  # format: "event, location_shortname"
-    event_title = shorten_rc_team_name(
-        event_and_locationshortname[0]).replace("-", " - ")
+    event_title = shorten_team_name(
+        event_and_locationshortname[0], teamname, teamshortname).replace("-", " - ")
     location_name = all_location_names[event_and_locationshortname[1].strip()]
     location_address = event.get("location")
 
@@ -136,6 +157,10 @@ def parse_calendar_event(event):
 
     print("Event found:", event_title, "@",
           location_name + " (" + location_address + ")")
+
+
+def shorten_team_name(event_title, teamname, team_shortname):
+    return event_title.replace(teamname, team_shortname)
 
 
 def create_or_update_venues():
@@ -166,15 +191,16 @@ def create_or_update_venue(location, address):
     venues[location] = venue_id
 
 
-def create_or_update_events():
+def create_or_update_events(league, event_categories):
     print("\nCreating or updating events")
 
     existing_events = get_existing_events()
     for game in games:
         if game["title"] in existing_events:
-            update_event(game, existing_events[game["title"]])
+            update_event(
+                game, existing_events[game["title"]], league, event_categories)
         else:
-            create_event(game)
+            create_event(game, league, event_categories)
 
 
 def get_existing_events():
@@ -198,27 +224,29 @@ def get_existing_events():
     return existing_events
 
 
-def update_event(game, event_id):
+def update_event(game, event_id, league, event_categories):
     print(f"Updating event: {game['title']} ({event_id})")
 
-    payload, headers = get_event_payload_and_headers(game)
+    payload, headers = create_event_payload_and_headers(
+        game, league, event_categories)
 
     response = requests.request("POST", urljoin(
         wp_events_api, "events/" + str(event_id)), headers=headers, data=payload)
     response.raise_for_status()
 
 
-def create_event(game):
+def create_event(game, league, event_categories):
     print("Creating event:", game["title"])
 
-    payload, headers = get_event_payload_and_headers(game)
+    payload, headers = create_event_payload_and_headers(
+        game, league, event_categories)
 
     response = requests.request("POST", urljoin(
         wp_events_api, "events"), headers=headers, data=payload)
     response.raise_for_status()
 
 
-def get_event_payload_and_headers(game):
+def create_event_payload_and_headers(game, league, event_categories):
     payload = json.dumps({
         "title": game["title"],
         "start_date": game["start"].strftime("%Y-%m-%d %H:%M:%S"),
@@ -226,7 +254,7 @@ def get_event_payload_and_headers(game):
         "venue": venues[game["venue"]],
         "categories": event_categories,
         "show_map": True,
-        "website": games_html_url
+        "website": f"https://www.basketball-bund.net/index.jsp?Action=101&liga_id={league}"
     })
     headers = {
         'Authorization': wp_auth,
