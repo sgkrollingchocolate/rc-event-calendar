@@ -10,7 +10,7 @@ import requests
 from bs4 import BeautifulSoup
 
 # wordpress
-wp_events_api = "https://relaunch.rolling-chocolate.de/wp-json/tribe/events/v1/"
+wp_events_api = "https://www.rolling-chocolate.de/wp-json/tribe/events/v1/"
 wp_auth = None
 
 
