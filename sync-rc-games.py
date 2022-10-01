@@ -3,6 +3,7 @@ import html
 import json
 import re
 from argparse import ArgumentParser
+from datetime import datetime
 from urllib.parse import urljoin
 
 import icalendar
@@ -194,7 +195,17 @@ def create_or_update_venue(location, address):
 def create_or_update_events(league, event_categories):
     print("\nCreating or updating events")
 
-    existing_events = get_existing_events()
+    # start date must be passed to wordpress events api, otherwise we don't
+    # get past games and would create duplicates
+    first_game_start_date = None
+    for game in games:
+        if first_game_start_date == None:
+            first_game_start_date = game["start"]
+        else:
+            if game["start"] < first_game_start_date:
+                first_game_start_date = game["start"]
+
+    existing_events = get_existing_events(first_game_start_date)
     for game in games:
         if game["title"] in existing_events:
             update_event(
@@ -203,13 +214,13 @@ def create_or_update_events(league, event_categories):
             create_event(game, league, event_categories)
 
 
-def get_existing_events():
+def get_existing_events(first_game_start_date):
     headers = {
         'Authorization': wp_auth
     }
 
     response = requests.request("GET", urljoin(
-        wp_events_api, "events?per_page=9999999"), headers=headers)
+        wp_events_api, "events?per_page=9999999&start_date=" + first_game_start_date.strftime("%Y-%m-%d")), headers=headers)
     response.raise_for_status()
 
     events = response.json()["events"]
