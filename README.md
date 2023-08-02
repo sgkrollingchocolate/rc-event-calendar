@@ -4,3 +4,4 @@
 
 ```pip install icalendar```
 ```pip install beautifulsoup4```
+```pip install requests```
