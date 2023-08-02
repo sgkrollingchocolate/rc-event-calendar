@@ -32,11 +32,11 @@ def clear_global_state():
 def main():
     parse_arguments_and_init_wp_auth()
 
-    rc1_league_id = "36198"
-    rc1_team_id = "309810"
+    rc1_league_id = "40310"
+    rc1_team_id = "343678"
     rc1_team_name = "SGK Rolling Chocolate"
     rc1_team_shortname = "RC1"
-    rc1_event_categories = ["rc1", "spieltag", "runde-22-23"]
+    rc1_event_categories = ["rc1", "spieltag", "runde-23-24"]
     sync_team_games(rc1_league_id, rc1_team_id, rc1_team_name,
                     rc1_team_shortname, rc1_event_categories)
 
