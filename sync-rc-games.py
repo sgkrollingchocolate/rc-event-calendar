@@ -32,13 +32,22 @@ def clear_global_state():
 def main():
     parse_arguments_and_init_wp_auth()
 
-    rc1_league_id = "40310"
-    rc1_team_id = "343678"
+    rc1_league_id = "43699"
+    rc1_team_id = "378599"
     rc1_team_name = "SGK Rolling Chocolate"
     rc1_team_shortname = "RC1"
-    rc1_event_categories = ["rc1", "spieltag", "runde-23-24"]
+    rc1_event_categories = ["rc1", "spieltag", "runde-24-25"]
     sync_team_games(rc1_league_id, rc1_team_id, rc1_team_name,
                     rc1_team_shortname, rc1_event_categories)
+
+    rc1pokal_league_id = "47050"
+    rc1pokal_team_id = "392047"
+    rc1pokal_team_name = "SGK Rolling Chocolate"
+    rc1pokal_team_shortname = "RC1"
+    rc1pokal_event_categories = ["rc1", "spieltag", "runde-24-25"]
+    sync_team_games(rc1pokal_league_id, rc1pokal_team_id, rc1pokal_team_name,
+                    rc1pokal_team_shortname, rc1pokal_event_categories)
+
 
     #rc2_league_id = "36203"
     #rc2_team_id = "322147"
