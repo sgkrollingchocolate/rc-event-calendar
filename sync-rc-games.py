@@ -40,13 +40,13 @@ def main():
     sync_team_games(rc1_league_id, rc1_team_id, rc1_team_name,
                     rc1_team_shortname, rc1_event_categories)
 
-    rc1pokal_league_id = "47050"
-    rc1pokal_team_id = "392047"
-    rc1pokal_team_name = "SGK Rolling Chocolate"
-    rc1pokal_team_shortname = "RC1"
-    rc1pokal_event_categories = ["rc1", "spieltag", "runde-24-25"]
-    sync_team_games(rc1pokal_league_id, rc1pokal_team_id, rc1pokal_team_name,
-                    rc1pokal_team_shortname, rc1pokal_event_categories)
+    #rc1pokal_league_id = "47050"
+    #rc1pokal_team_id = "392047"
+    #rc1pokal_team_name = "SGK Rolling Chocolate"
+    #rc1pokal_team_shortname = "RC1"
+    #rc1pokal_event_categories = ["rc1", "spieltag", "runde-24-25"]
+    #sync_team_games(rc1pokal_league_id, rc1pokal_team_id, rc1pokal_team_name,
+    #                rc1pokal_team_shortname, rc1pokal_event_categories)
 
 
     #rc2_league_id = "36203"
