@@ -49,13 +49,13 @@ def main():
     #                rc1pokal_team_shortname, rc1pokal_event_categories)
 
 
-    #rc2_league_id = "36203"
-    #rc2_team_id = "322147"
-    #rc2_team_name = "SGK Rolling Chocolate 2"
-    #rc2_team_shortname = "RC2"
-    #rc2_event_categories = ["rc2", "spieltag", "runde-22-23"]
-    #sync_team_games(rc2_league_id, rc2_team_id, rc2_team_name,
-    #                rc2_team_shortname, rc2_event_categories)
+    rc2_league_id = "45183"
+    rc2_team_id = "376784"
+    rc2_team_name = "SGK Rolling Chocolate 2"
+    rc2_team_shortname = "RC2"
+    rc2_event_categories = ["rc2", "spieltag", "runde-24-25"]
+    sync_team_games(rc2_league_id, rc2_team_id, rc2_team_name,
+                    rc2_team_shortname, rc2_event_categories)
 
 
 def parse_arguments_and_init_wp_auth():
