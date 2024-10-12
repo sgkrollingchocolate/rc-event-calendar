@@ -154,7 +154,7 @@ def parse_calendar_event(event, teamname, teamshortname):
         ",", 1)  # format: "event, location_shortname"
     event_title = shorten_team_name(
         event_and_locationshortname[0], teamname, teamshortname).replace("-", " - ").replace("Lahn - Dill", "Lahn-Dill")
-    location_name = all_location_names[event_and_locationshortname[1].strip()]
+    location_name = all_location_names.get(event_and_locationshortname[1].strip())
     location_address = event.get("location")
 
     games.append({
@@ -166,7 +166,7 @@ def parse_calendar_event(event, teamname, teamshortname):
     locations[location_name] = location_address
 
     print("Event found:", event_title, "@",
-          location_name + " (" + location_address + ")")
+          (location_name + " (" + location_address + ")" if location_name is not None else "Unbekannt"))
 
 
 def shorten_team_name(event_title, teamname, team_shortname):
@@ -176,7 +176,8 @@ def shorten_team_name(event_title, teamname, team_shortname):
 def create_or_update_venues():
     print("\nCreating or updating venues")
     for location, address in locations.items():
-        create_or_update_venue(location, address)
+        if location is not None:
+            create_or_update_venue(location, address)
 
 
 def create_or_update_venue(location, address):
@@ -272,7 +273,7 @@ def create_event_payload_and_headers(game, league, event_categories):
         "start_date": game["start"].strftime("%Y-%m-%d %H:%M:%S"),
         "end_date": game["end"].strftime("%Y-%m-%d %H:%M:%S"),
         "timezone": "UTC",  # times are given in UTC
-        "venue": venues[game["venue"]],
+        "venue": venues.get(game["venue"]),
         "categories": event_categories,
         "show_map": True,
         "website": f"https://www.basketball-bund.net/index.jsp?Action=101&liga_id={league}"
