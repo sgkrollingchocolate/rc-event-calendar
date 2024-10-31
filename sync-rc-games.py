@@ -205,17 +205,7 @@ def create_or_update_venue(location, address):
 def create_or_update_events(league, event_categories):
     print("\nCreating or updating events")
 
-    # start date must be passed to wordpress events api, otherwise we don't
-    # get past games and would create duplicates
-    first_game_start_date = None
-    for game in games:
-        if first_game_start_date == None:
-            first_game_start_date = game["start"]
-        else:
-            if game["start"] < first_game_start_date:
-                first_game_start_date = game["start"]
-
-    existing_events = get_existing_events(first_game_start_date)
+    existing_events = get_existing_events()
     for game in games:
         if game["title"] in existing_events:
             update_event(
@@ -224,17 +214,8 @@ def create_or_update_events(league, event_categories):
             create_event(game, league, event_categories)
 
 
-def get_existing_events(first_game_start_date):
-    headers = {
-        'Authorization': wp_auth
-    }
-
-    response = requests.request("GET", urljoin(
-        wp_events_api, "events?per_page=9999999&start_date=" + first_game_start_date.strftime("%Y-%m-%d")), headers=headers)
-    response.raise_for_status()
-
-    events = response.json()["events"]
-
+def get_existing_events():
+    events = request_events()
     existing_events = {}
     for event in events:
         normalized_title = html.unescape(event["title"]).replace(
@@ -243,6 +224,33 @@ def get_existing_events(first_game_start_date):
         print("Existing event found:", normalized_title, "=>", event["id"])
 
     return existing_events
+
+def request_events():
+    events = []
+    
+    page = 1
+    while True:
+        response = request_events_per_page(page)
+        events.extend(response.json()["events"])
+        if not response.json().get("next_rest_url"):
+            break
+        else:
+            # not using next_rest_url directly because it produces a 400 error
+            page += 1
+
+    return events
+
+
+def request_events_per_page(page):
+    headers = {
+        'Authorization': wp_auth
+    }
+
+    response = requests.request("GET", urljoin(
+        wp_events_api, "events?per_page=50&starts_after=1900-01-01&page=" + str(page)), headers=headers)
+    response.raise_for_status()
+
+    return response
 
 
 def update_event(game, event_id, league, event_categories):
