@@ -276,7 +276,7 @@ def create_event_payload_and_headers(game, league, event_categories):
         "venue": venues.get(game["venue"]),
         "categories": event_categories,
         "show_map": True,
-        "website": f"https://www.basketball-bund.net/index.jsp?Action=101&liga_id={league}"
+        "website": getWebsiteForLeague(league)
     })
     headers = {
         'Authorization': wp_auth,
@@ -284,6 +284,9 @@ def create_event_payload_and_headers(game, league, event_categories):
     }
 
     return payload, headers
+
+def getWebsiteForLeague(league):
+    return f"https://www.basketball-bund.net/index.jsp?Action=101&liga_id={league}"
 
 
 main()
