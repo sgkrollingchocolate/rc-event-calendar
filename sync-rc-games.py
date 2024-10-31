@@ -84,7 +84,8 @@ def sync_team_games(league_id, team_id, team_name, team_shortname, event_categor
     map_all_location_names(league_id)
     parse_calendar(league_id, team_id, team_name, team_shortname)
     create_or_update_venues()
-    create_or_update_events(league_id, event_categories)
+    delete_events(league_id)
+    create_events(league_id, event_categories)
 
 
 # DBB Spielplan calendar export doesn't contain location name (e.g. Halle 1 Sportzentrum Süd), only a shortname (e.g. RBB-SZS)
@@ -166,7 +167,7 @@ def parse_calendar_event(event, teamname, teamshortname):
     locations[location_name] = location_address
 
     print("Event found:", event_title, "@",
-          (location_name + " (" + location_address + ")" if location_name is not None else "Unbekannt"))
+          (location_name + " (" + location_address + ")" if location_name is not None else "Unknown"))
 
 
 def shorten_team_name(event_title, teamname, team_shortname):
@@ -202,35 +203,25 @@ def create_or_update_venue(location, address):
     venues[location] = venue_id
 
 
-def create_or_update_events(league, event_categories):
-    print("\nCreating or updating events")
+def delete_events(league):
+    print("\nDeleting events")
 
-    existing_events = get_existing_events()
-    for game in games:
-        if game["title"] in existing_events:
-            update_event(
-                game, existing_events[game["title"]], league, event_categories)
-        else:
-            create_event(game, league, event_categories)
-
-
-def get_existing_events():
-    events = request_events()
-    existing_events = {}
+    events = get_events_for_league(league)
     for event in events:
-        normalized_title = html.unescape(event["title"]).replace(
-            "–", "-")  # wordpress changes to a slightly different hyphen
-        existing_events[normalized_title] = event["id"]
-        print("Existing event found:", normalized_title, "=>", event["id"])
+        delete_event(event)
 
-    return existing_events
 
-def request_events():
+def get_events_for_league(league):
+    events = get_events()
+    return [event for event in events if html.unescape(event["website"]) == get_website_for_league(league)]
+
+
+def get_events():
     events = []
     
     page = 1
     while True:
-        response = request_events_per_page(page)
+        response = get_events_per_page(page)
         events.extend(response.json()["events"])
         if not response.json().get("next_rest_url"):
             break
@@ -241,7 +232,7 @@ def request_events():
     return events
 
 
-def request_events_per_page(page):
+def get_events_per_page(page):
     headers = {
         'Authorization': wp_auth
     }
@@ -253,21 +244,29 @@ def request_events_per_page(page):
     return response
 
 
-def update_event(game, event_id, league, event_categories):
-    print(f"Updating event: {game['title']} ({event_id})")
+def delete_event(event):
+    print(f"Deleting event: {html.unescape(event['title'])} ({event['id']})")
 
-    payload, headers = create_event_payload_and_headers(
-        game, league, event_categories)
+    headers = {
+        'Authorization': wp_auth
+    }
 
-    response = requests.request("POST", urljoin(
-        wp_events_api, "events/" + str(event_id)), headers=headers, data=payload)
+    response = requests.request("DELETE", urljoin(
+        wp_events_api, "events/" + str(event["id"])), headers=headers)
     response.raise_for_status()
+
+
+def create_events(league, event_categories):
+    print("\nCreating events")
+
+    for game in games:
+        create_event(game, league, event_categories)
 
 
 def create_event(game, league, event_categories):
     print("Creating event:", game["title"])
 
-    payload, headers = create_event_payload_and_headers(
+    payload, headers = get_create_event_payload_and_headers(
         game, league, event_categories)
 
     response = requests.request("POST", urljoin(
@@ -275,7 +274,7 @@ def create_event(game, league, event_categories):
     response.raise_for_status()
 
 
-def create_event_payload_and_headers(game, league, event_categories):
+def get_create_event_payload_and_headers(game, league, event_categories):
     payload = json.dumps({
         "title": game["title"],
         "start_date": game["start"].strftime("%Y-%m-%d %H:%M:%S"),
@@ -284,7 +283,7 @@ def create_event_payload_and_headers(game, league, event_categories):
         "venue": venues.get(game["venue"]),
         "categories": event_categories,
         "show_map": True,
-        "website": getWebsiteForLeague(league)
+        "website": get_website_for_league(league)
     })
     headers = {
         'Authorization': wp_auth,
@@ -293,8 +292,7 @@ def create_event_payload_and_headers(game, league, event_categories):
 
     return payload, headers
 
-def getWebsiteForLeague(league):
+def get_website_for_league(league):
     return f"https://www.basketball-bund.net/index.jsp?Action=101&liga_id={league}"
-
 
 main()
