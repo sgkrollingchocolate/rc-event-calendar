@@ -32,8 +32,8 @@ def clear_global_state():
 def main():
     parse_arguments_and_init_wp_auth()
 
-    rc1_league_id = "43699"
-    rc1_team_id = "378599"
+    rc1_league_id = "48078"
+    rc1_team_id = "401699"
     rc1_team_name = "SGK Rolling Chocolate"
     rc1_team_shortname = "RC1"
     rc1_event_categories = ["rc1", "spieltag", "runde-24-25"]
@@ -49,8 +49,8 @@ def main():
     #                rc1pokal_team_shortname, rc1pokal_event_categories)
 
 
-    rc2_league_id = "45183"
-    rc2_team_id = "376784"
+    rc2_league_id = "48083"
+    rc2_team_id = "401735"
     rc2_team_name = "SGK Rolling Chocolate 2"
     rc2_team_shortname = "RC2"
     rc2_event_categories = ["rc2", "spieltag", "runde-24-25"]
