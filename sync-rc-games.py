@@ -22,13 +22,6 @@ locations = {}
 venues = {}
 
 
-def clear_global_state():
-    all_location_names.clear()
-    games.clear()
-    locations.clear()
-    venues.clear()
-
-
 def main():
     parse_arguments_and_init_wp_auth()
 
@@ -77,6 +70,13 @@ def sync_team_games(*, league_id, team_id, team_name, team_shortname, event_cate
     create_or_update_venues()
     delete_events(league_id)
     create_events(league_id, event_categories)
+
+
+def clear_global_state():
+    all_location_names.clear()
+    games.clear()
+    locations.clear()
+    venues.clear()
 
 
 # DBB Spielplan calendar export doesn't contain location name (e.g. Halle 1 Sportzentrum Süd), only a shortname (e.g. RBB-SZS)
