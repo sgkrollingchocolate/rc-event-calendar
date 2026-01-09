@@ -20,6 +20,7 @@ wp_auth = None
 
 # global data
 all_location_names = {}
+cancelled_games = {}
 games = []
 locations = {}
 venues = {}
@@ -72,7 +73,7 @@ def init_dry_run_flag(dry_run_arg):
 
 def sync_team_games(*, league_id, team_id, team_name, team_shortname, event_categories):
     clear_global_state()
-    map_all_location_names(league_id)
+    scrape_league_data(league_id)
     parse_calendar(league_id, team_id, team_name, team_shortname)
     if not dry_run:
         create_or_update_venues()
@@ -84,14 +85,20 @@ def sync_team_games(*, league_id, team_id, team_name, team_shortname, event_cate
 
 def clear_global_state():
     all_location_names.clear()
+    cancelled_games.clear()
     games.clear()
     locations.clear()
     venues.clear()
 
 
 # DBB Spielplan calendar export doesn't contain location name (e.g. Halle 1 Sportzentrum Süd), only a shortname (e.g. RBB-SZS)
-# in the event summary. This funtion scraps the mapping from location shortname to name from the paged HTML.
-def map_all_location_names(league):
+# in the event summary. This function scrapes location names and cancelled game info from the paged HTML.
+def scrape_league_data(league):
+    for_each_html_page_in_league(league, process_html_page)
+
+
+def for_each_html_page_in_league(league, page_processor):
+    """Navigate through paginated HTML pages for a league and call page_processor for each page."""
     session = requests.Session()  # navigation to next page only works with session cookie
     current_url = f"https://www.basketball-bund.net/index.jsp?Action=101&liga_id={league}"
 
@@ -101,13 +108,19 @@ def map_all_location_names(league):
         response.raise_for_status()
         html_dom = BeautifulSoup(response.text, 'html.parser')
 
-        find_and_map_location_names_in_html(html_dom)
+        page_processor(html_dom)
 
         next_page_link = find_next_page_link(html_dom)
         if next_page_link != None:
             current_url = urljoin(current_url, next_page_link)
         else:
             current_url = None
+
+
+def process_html_page(html_dom):
+    """Process a single HTML page to extract location names and cancelled games."""
+    find_and_map_location_names_in_html(html_dom)
+    find_and_map_cancelled_games_in_html(html_dom)
 
 
 def find_next_page_link(html_dom):
@@ -134,6 +147,23 @@ def find_and_map_location_names_in_elements_with_mouseover(elements):
             all_location_names[match.group("locationshortname")] = location
 
 
+def find_and_map_cancelled_games_in_html(html_dom):
+    """Extract cancelled games from HTML and map them by game number."""
+    # Find all table rows in the sports view table
+    table_rows = html_dom.findAll('tr')
+    for row in table_rows:
+        # Check if this row contains a cancelled game indicator
+        cancelled_img = row.find('img', {'title': 'Spiel abgesagt'})
+        if cancelled_img:
+            # Extract the game number from the first cell
+            cells = row.findAll('td')
+            if len(cells) > 0:
+                game_number_text = cells[0].get_text(strip=True)
+                if game_number_text:
+                    cancelled_games[game_number_text] = True
+                    print("Cancelled game found: Nr.", game_number_text)
+
+
 def strip_multiple_spaces_to_single_space(str):
     return " ".join(str.split())
 
@@ -153,26 +183,31 @@ def parse_calendar(league, team, teamname, teamshortname):
 
 def parse_calendar_event(event, teamname, teamshortname):
     # format: "event, location_shortname (SpNr. xx)"
-    match = re.match(r'^(?P<event>.+),\s+(?P<location_shortname>\S+)', event.get("summary"))
+    match = re.match(r'^(?P<event>.+?),\s+(?P<location_shortname>\S+)\s+\(SpNr\.\s*(?P<game_number>\d+)\)$', event.get("summary"))
     if not match:
         print("Skipping event with unrecognized format:", event.get("summary"))
     
     event_title = shorten_team_name(
         match.group('event'), teamname, teamshortname).replace("-", " - ").replace("Lahn - Dill", "Lahn-Dill")
     location_shortname = match.group('location_shortname')
+    game_number = match.group('game_number')
     location_name = all_location_names.get(location_shortname)
     location_address = event.get("location")
+    
+    is_cancelled = cancelled_games.get(game_number, False)
 
     games.append({
         "title": event_title,
         "start": event.decoded("dtstart"),
         "end": event.decoded("dtend"),
         "venue": location_name,
+        "cancelled": is_cancelled,
     })
     locations[location_name] = location_address
 
+    status_str = "(CANCELLED)" if is_cancelled else ""
     print("Event found:", event_title, "@",
-          (location_name + " (" + location_address + ")" if location_name is not None else "Unknown"))
+          (location_name + " (" + location_address + ")" if location_name is not None else "Unknown"), status_str)
 
 
 def shorten_team_name(event_title, teamname, team_shortname):
@@ -281,7 +316,7 @@ def create_event(game, league, event_categories):
 
 def get_create_event_payload_and_headers(game, league, event_categories):
     payload = json.dumps({
-        "title": game["title"],
+        "title": game["title"] if not game.get("cancelled") else "[ABGESAGT] " + game["title"],
         "start_date": game["start"].strftime("%Y-%m-%d %H:%M:%S"),
         "end_date": game["end"].strftime("%Y-%m-%d %H:%M:%S"),
         "timezone": "UTC",  # times are given in UTC
