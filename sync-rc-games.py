@@ -152,11 +152,15 @@ def parse_calendar(league, team, teamname, teamshortname):
 
 
 def parse_calendar_event(event, teamname, teamshortname):
-    event_and_locationshortname = event.get("summary").rsplit(
-        ",", 1)  # format: "event, location_shortname"
+    # format: "event, location_shortname (SpNr. xx)"
+    match = re.match(r'^(?P<event>.+),\s+(?P<location_shortname>\S+)', event.get("summary"))
+    if not match:
+        print("Skipping event with unrecognized format:", event.get("summary"))
+    
     event_title = shorten_team_name(
-        event_and_locationshortname[0], teamname, teamshortname).replace("-", " - ").replace("Lahn - Dill", "Lahn-Dill")
-    location_name = all_location_names.get(event_and_locationshortname[1].strip())
+        match.group('event'), teamname, teamshortname).replace("-", " - ").replace("Lahn - Dill", "Lahn-Dill")
+    location_shortname = match.group('location_shortname')
+    location_name = all_location_names.get(location_shortname)
     location_address = event.get("location")
 
     games.append({
