@@ -10,6 +10,9 @@ import icalendar
 import requests
 from bs4 import BeautifulSoup
 
+# Enabled with --dry-run argument to only simulate, e.g. don't write changes for testing
+dry_run = False
+
 # wordpress
 wp_events_api = "https://www.rolling-chocolate.de/wp-json/tribe/events/v1/"
 wp_auth = None
@@ -45,31 +48,38 @@ def main():
 def parse_arguments_and_init_wp_auth():
     args = parse_arguments()
     init_wp_auth(args.wp_user.strip(), args.wp_pass.strip())
+    init_dry_run_flag(args.dry_run)
 
 
 def parse_arguments():
     parser = ArgumentParser()
-    parser.add_argument("-u", "--wp-user", dest="wp_user",
-                        help="WordPress user", required=True)
-    parser.add_argument("-p", "--wp-password", dest="wp_pass",
-                        help="WordPress password", required=True)
+    parser.add_argument("-u", "--wp-user", dest="wp_user", help="WordPress username", required=True)
+    parser.add_argument("-p", "--wp-password", dest="wp_pass", help="WordPress password", required=True)
+    parser.add_argument("--dry-run", action="store_true", help="Only simulate, don't write changes")
     return parser.parse_args()
 
 
 def init_wp_auth(wp_user, wp_pass):
     global wp_auth
-    wp_auth = "Basic " + \
-        base64.b64encode(
-            bytes(wp_user + ":" + wp_pass, "utf-8")).decode("utf-8")
+    credentials = f"{wp_user}:{wp_pass}".encode("utf-8")
+    wp_auth = "Basic " + base64.b64encode(credentials).decode("utf-8")
+
+
+def init_dry_run_flag(dry_run_arg):
+    global dry_run
+    dry_run = dry_run_arg
 
 
 def sync_team_games(*, league_id, team_id, team_name, team_shortname, event_categories):
     clear_global_state()
     map_all_location_names(league_id)
     parse_calendar(league_id, team_id, team_name, team_shortname)
-    create_or_update_venues()
-    delete_events(league_id)
-    create_events(league_id, event_categories)
+    if not dry_run:
+        create_or_update_venues()
+        delete_events(league_id)
+        create_events(league_id, event_categories)
+    else:
+        print("[DRY-RUN] Would create venues and events for league: %s", league_id)
 
 
 def clear_global_state():
