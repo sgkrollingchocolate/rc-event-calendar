@@ -80,7 +80,7 @@ def sync_team_games(*, league_id, team_id, team_name, team_shortname, event_cate
         delete_events(league_id)
         create_events(league_id, event_categories)
     else:
-        print("[DRY-RUN] Would create venues and events for league: %s", league_id)
+        print("[DRY-RUN] Would create venues and events for league:", league_id)
 
 
 def clear_global_state():
