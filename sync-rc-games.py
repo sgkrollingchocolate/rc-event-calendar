@@ -8,18 +8,18 @@ WP_BASE_URL = "https://www.rolling-chocolate.de/"
 # RC teams configuration
 RC_TEAMS = [
     {
-        "league_id": "48078",
-        "team_id": "401699",
+        "league_id": "52877",
+        "team_id": "440486",
         "team_name": "SGK Rolling Chocolate",
         "team_shortname": "RC1",
-        "event_categories": ["rc1", "spieltag", "runde-25-26"]
+        "event_categories": ["rc1", "spieltag", "runde-26-27"]
     },
     {
-        "league_id": "48083",
-        "team_id": "401735",
+        "league_id": "52882",
+        "team_id": "440517",
         "team_name": "SGK Rolling Chocolate 2",
         "team_shortname": "RC2",
-        "event_categories": ["rc2", "spieltag", "runde-25-26"]
+        "event_categories": ["rc2", "spieltag", "runde-26-27"]
     }
 ]
 
