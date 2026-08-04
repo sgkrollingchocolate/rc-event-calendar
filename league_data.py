@@ -46,6 +46,8 @@ class LeagueData:
 
     def _find_next_page_link(self, html_dom):
         next_page_image = html_dom.find(title="Seite vor")
+        if next_page_image is None:
+            return None
         return next_page_image.find_parent().get("href")
 
     def _find_and_map_location_names_in_html(self, html_dom):
@@ -98,6 +100,7 @@ class LeagueData:
         match = re.match(r'^(?P<event>.+?),\s+(?P<location_shortname>\S+)\s+\(SpNr\.\s*(?P<game_number>\d+)\)$', event.get("summary"))
         if not match:
             print("Skipping event with unrecognized format:", event.get("summary"))
+            return
         
         event_title = self._shorten_team_name(
             match.group('event'), teamname, teamshortname).replace("-", " - ").replace("Lahn - Dill", "Lahn-Dill")

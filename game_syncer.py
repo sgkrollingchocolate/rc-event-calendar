@@ -16,6 +16,10 @@ class GameSyncer:
         league_data = LeagueData(league_id)
         league_data.scrape_league_data()
         league_data.parse_calendar(team_id, team_name, team_shortname)
+
+        if not league_data.games:
+            print(f"WARNING: No games found for league {league_id}, team {team_id} — skipping sync to avoid deleting existing events.")
+            return
         
         if not self.dry_run:
             wp_manager = WordPressEventManager(
