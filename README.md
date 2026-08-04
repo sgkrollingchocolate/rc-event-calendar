@@ -2,9 +2,13 @@
 
 ## Prerequisites
 
-```pip install icalendar```
-```pip install beautifulsoup4```
-```pip install requests```
+Create and activate a virtual environment, then install dependencies:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
 ## Run
 

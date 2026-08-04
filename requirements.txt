@@ -1,0 +1,3 @@
+icalendar
+beautifulsoup4
+requests
